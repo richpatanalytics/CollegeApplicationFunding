@@ -1,0 +1,334 @@
+---
+title: "CollegeAdmissionsFunnel_v2"
+author: "Richard Paterson"
+date: "September 2019"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+Explanation / Origination:
+Continuation of : IST719_FinalProject_Paterson_v4.Rmd
+Dataset was: fn<-"CollegeAdmissions_transposed.csv"
+
+```{r setup, include=FALSE, echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(eval = TRUE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(tidy = TRUE)
+knitr::opts_chunk$set(cache = FALSE)  # html generated inline
+
+knitr::opts_chunk$set(size = "small")
+knitr::opts_hooks$set(fig.width = function(options) {
+  if (options$fig.width < options$fig.height) {
+    options$fig.width = options$fig.height
+  }
+  options
+})
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+
+is_installed <- function(x){
+  for(i in x){
+    # require will return TRUE (1) "invisibly" if it was able to load package
+    if(!require(i, quietly=TRUE, character.only = TRUE)){
+      # If, for any reason, the package was not able to be loaded then re-install and expect a
+      # RStudio message
+      install.packages(i , dependencies = TRUE)
+      #  Attach the package after installing
+      require(i , character.only = TRUE, quietly=TRUE)
+    }
+  }
+}
+
+# for example here is a  vector of concatenated character strings assigned to the obj `pkg`
+#pkg <- c("rmarkdown", "shiny", "psych", "knitr", "dplyr", "ggplot2", "ggthemes", "plotly", "moments", "dplyr")
+pkg <- c("rmarkdown", "knitr", "dplyr", "ggplot2", "ggthemes", "gganimate", "dplyr", "scales")
+
+# use `pkg` as the "argument" of the function `is_installed()`
+is_installed(pkg)
+
+#library(gdata,quietly=TRUE, verbose=FALSE)
+#is_installed("htmltab")
+#library(htmltab,quietly=TRUE, verbose=FALSE)
+#is_installed("grDevices")
+#library(grDevices,quietly=TRUE, verbose=FALSE)
+
+#see original at...
+#setwd('C:/Users/Richpat/Documents/@syracuse coursework/@IST 719 Visualization/finalproject')
+setwd('C:/Users/Richpat/Documents/@site richpat/collegeAdmission')
+
+```
+
+## Setup
+
+```{r ass8_getadmissions, echo=FALSE}
+
+fn<-"CollegeAdmissionsFunnel_transposed.csv"
+# Read and review a csv file from fn
+admissions <- read.csv(fn, header = TRUE)
+
+cat ("\ndim(admissions) : ", dim(admissions), " \n")
+cat ("\nstr(admissions) : \n")
+str(admissions)
+cat ("\nhead(admissions) : \n")
+head(admissions)
+cat ("\nsummary(admissions) : \n")
+summary(admissions)
+
+#what to show
+#options are
+# UseA  ApAc  ApFc  AdAc  AdFc  EnAc  EnFc  OT  ApY   AdY   EnY   duration explanation
+# 1     0     0     0     0     0     0     3   2002  2002  2002  1  show empty panel
+# 1     1     0     0     0     0     0     3   2002  2002  2002  1   sho app 2002 in pdf
+# 1     1     0     0     0     0     0     3   2017  2002  2002  20  build app actual to 2017,  
+# 1     1     1     0     0     0     0     3   2017  2002  2002  20  build app actual to 2017,
+# 1     1     1     1     0     0     0     3   2017  2002  2002  40   build app actual to 2017,
+# 1     1     1     1     0     0     0     3   2017  2017  2002  40  build app actual to 2017,
+# 1     1     1     1     1     0     0     3   2017  2017  2002  40  build app actual to 2017,
+# 1     1     1     1     1     1     0     3   2017  2017  2002  60   build app actual to 2017,
+# 1     1     1     1     1     1     0     3   2017  2017  2017  60  build app actual to 2017,
+# 1     1     1     1     1     1     1     3   2017  2017  2017  60  build app actual to 2017,
+
+# which display is required
+UseApp<-1
+ApAc<-1
+ApFc<-1
+AdAc<-1
+AdFc<-1
+EnAc<-1
+EnFc<-0
+
+# which output type is required?
+# 0 = no animation
+# 1 = quickest and least functional
+# 2 = slower, more functional
+# 3 = slowest, mp4 file
+###################
+output<-3
+drtn<-60
+
+# which bar point do we change at
+splitpointAp<-2017 # either 2002 or 2017
+splitpointAd<-2017 # either 2002 or 2017
+splitpointEn<-2002 # either 2002 or 2017
+
+###################
+st<-format(Sys.time(), "%Y%m%d%H%M")
+wch<-paste(UseApp, ApAc, ApFc, AdAc, AdFc, EnAc, EnFc, "_", splitpointAp, splitpointAd, splitpointEn, "_", output, sep = "")
+
+##################
+ApTBC<-"#000000" #ECECEC
+AdTBC<-"#FFFFFF" #DBDBDB
+EnTBC<-"#000000" #DBDBDB
+
+
+```
+## transform data
+## make long, extract what is required
+## add ordering, coloring, calculated numbers
+
+```{r transform}
+
+library(tidyr)
+
+df2_long <- gather(admissions, lbs, Value, Applicants:Enrolled, -Year)
+df2_long$Year<-as.factor(df2_long$Year)
+df2_long$lbs<-factor(df2_long$lbs, ordered=TRUE, c("Applicants", "Admitted", "Enrolled"))
+df2_long
+df2_reduced<-df2_long[,-c(2,3)]
+df2_reduced
+#----
+df2_r_enr<-df2_reduced[df2_reduced$lbs=="Enrolled",]
+row.names(df2_r_enr) <- 1:nrow(df2_r_enr)
+df2_r_enr$lagp<-0
+df2_r_enr$lagp[2:nrow(df2_r_enr)]<-df2_r_enr$Value[1:nrow(df2_r_enr)-1]
+df2_r_enr$lagppct<-round(((df2_r_enr$Value-df2_r_enr$lagp)/df2_r_enr$lagp)*100, 0) #pct up from previous year
+df2_r_enr$lag1pct<-round(((df2_r_enr$Value-df2_r_enr$Value[1])/df2_r_enr$Value[1])*100, 0) #pct up from 1st year
+df2_r_enr$avgperenrol<-0
+df2_r_enr$colbar<-ifelse(as.numeric(as.character(df2_r_enr$Year))>splitpointEn, "#3CBB75FF", "#20A387FF")
+df2_r_enr$colcnt<-ifelse(as.numeric(as.character(df2_r_enr$Year))>splitpointEn, alpha(EnTBC, EnFc), alpha(EnTBC, EnAc))
+df2_r_enr$lbs<-ifelse(as.numeric(as.character(df2_r_enr$Year))>splitpointEn, "6Enr Fcast", "5Enrolled")
+df2_r_enr$ord<-ifelse(as.numeric(as.character(df2_r_enr$Year))>splitpointEn, 6, 5)
+df2_r_enr
+#----
+df2_r_adm<-df2_reduced[df2_reduced$lbs=="Admitted",]
+row.names(df2_r_adm) <- 1:nrow(df2_r_adm)
+df2_r_adm$lagp<-0
+df2_r_adm$lagp[2:nrow(df2_r_adm)]<-df2_r_adm$Value[1:nrow(df2_r_adm)-1]
+df2_r_adm$lagppct<-round(((df2_r_adm$Value-df2_r_adm$lagp)/df2_r_adm$lagp)*100, 0) #pct up from previous year
+df2_r_adm$lag1pct<-round(((df2_r_adm$Value-df2_r_adm$Value[1])/df2_r_adm$Value[1])*100, 0) #pct up from 1st year
+df2_r_adm$avgperenrol<-round(df2_r_adm$Value/df2_r_enr$Value, 2)
+df2_r_adm$colbar<-ifelse(as.numeric(as.character(df2_r_adm$Year))>splitpointAd, "#39568CFF", "#2D708EFF") #target tshirt blue # navy
+df2_r_adm$colcnt<-ifelse(as.numeric(as.character(df2_r_adm$Year))>splitpointAd, alpha(AdTBC, AdFc), alpha(AdTBC, AdAc))
+df2_r_adm$lbs<-ifelse(as.numeric(as.character(df2_r_adm$Year))>splitpointAd, "4Adm Fcast", "3Admitted")
+df2_r_adm$ord<-ifelse(as.numeric(as.character(df2_r_adm$Year))>splitpointAd, 4, 3)
+df2_r_adm
+#----
+df2_r_app<-df2_reduced[df2_reduced$lbs=="Applicants",]
+row.names(df2_r_app) <- 1:nrow(df2_r_app)
+df2_r_app$lagp<-0
+df2_r_app$lagp[2:nrow(df2_r_app)]<-df2_r_app$Value[1:nrow(df2_r_app)-1]
+df2_r_app$lagppct<-round(((df2_r_app$Value-df2_r_app$lagp)/df2_r_app$lagp)*100, 0) #pct up from previous year
+df2_r_app$lag1pct<-round(((df2_r_app$Value-df2_r_app$Value[1])/df2_r_app$Value[1])*100, 0) #pct up from 1st year
+df2_r_app$avgperenrol<-round(df2_r_app$Value/df2_r_enr$Value, 2)
+df2_r_app$colbar<-ifelse(as.numeric(as.character(df2_r_app$Year))>splitpointAp,  alpha("#20A387FF", ApFc), alpha("#3CBB75FF", ApAc)) #apple green #greener lime
+df2_r_app$colcnt<-ifelse(as.numeric(as.character(df2_r_app$Year))>splitpointAp, alpha(ApTBC, ApFc), alpha(ApTBC, ApAc))
+df2_r_app$lbs<-ifelse(as.numeric(as.character(df2_r_app$Year))>splitpointAp, "2App Fcast", "1Applicants")
+df2_r_app$ord<-ifelse(as.numeric(as.character(df2_r_app$Year))>splitpointAp, 2, 1)
+df2_r_app
+#----
+
+df2_ordered<-rbind(df2_r_app[1==UseApp,]
+                   , df2_r_adm[df2_r_adm$ord==(3*AdAc),]
+                   , df2_r_adm[df2_r_adm$ord==(4*AdFc),]
+                   , df2_r_enr[df2_r_enr$ord==(5*EnAc),]
+                   , df2_r_enr[df2_r_enr$ord==(6*EnFc),])
+row.names(df2_ordered) <- 1:nrow(df2_ordered)
+df2_ordered
+
+```
+
+```{r r buildchart4, fig.width=12,fig.height=8}
+
+#see as example ... https://stackoverflow.com/questions/55922909/gganimate-a-stacked-bar-chart-per-bar-color
+#see as example .... https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/colorPaletteCheatsheet.pdf
+#see as reference ... https://ggplot2.tidyverse.org/reference/scale_viridis.html
+#see as example .... https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html
+#see as reference ... https://ffmpeg.org/documentation.html
+#see as reference ... https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/pdf.html
+#see as reference ... https://www.mikelee.co/posts/2019-02-23-creating-pauses-in-r-animations/
+
+library(viridis)
+
+df2_ordered %>%
+  arrange(ord, Year) %>%
+  mutate(frame_num = row_number()) %>%
+  group_by(Year) %>%
+  mutate(space_below = 0) %>%
+  ungroup() -> TMPintermediate
+
+TMPintermediate %>% 
+  ggplot() +
+  geom_tile(aes(Year, space_below + Value/2, 
+                width = .95, height = Value,
+                fill = lbs)) +
+  scale_fill_manual(name="Legend", 
+                    values = c(alpha("#3CBB75FF", ApAc), alpha("#20A387FF", ApFc), 
+                               alpha("#2D708EFF", AdAc), alpha("#39568CFF", AdFc),
+                               alpha("#B8DE29FF", EnAc), alpha("#95D840FF", EnFc)), 
+                    labels = c("1Applicants", "2App Fcast",
+                               "3Admitted", "4Adm Fcast", 
+                               "5Enrolled", "6Enr Fcast")) +
+  #theme(legend.position = "none") +
+  theme(legend.position = "none", 
+        axis.text.y=element_blank(), 
+        axis.title.y=element_blank()) +
+  geom_text(aes(Year,space_below+Value, 
+                label=(ifelse((Year%in% c("2002","2017","2025")), 
+                  (round(Value/1000000, 1)), ""))), 
+                vjust=1.2, hjust="middle", 
+                color=df2_ordered$colcnt, size=4.5) +
+  geom_text(aes(Year,space_below+Value,
+                label=(ifelse((Year%in% c("2002","2017","2025")) & (avgperenrol!=0),
+                             avgperenrol, ""))), 
+            vjust=2.8, hjust="middle", color=df2_ordered$colcnt, size=4.5) +
+  geom_text(aes(Year,space_below+Value,
+                label=(ifelse((Year%in% c("0000","2017","2025")) & (lag1pct!=0), 
+                              paste(lag1pct, "%", sep = ""), ""))), 
+            vjust=(ifelse(df2_ordered$ord<5, 4.4, 2.8)), hjust="middle", color=df2_ordered$colcnt,  size=4.5) +
+#  theme(panel.background = element_blank()) +
+#  geom_text(data = NULL, x = 1, y = 13000000, 
+#            label = "Total Applications Submitted (Millions)", 
+#            hjust="left", color="#979797", size=4.0) +
+#  geom_text(data = NULL, x = 1, y = 12500000, 
+#            label = "Applications Submitted per Student", 
+#            hjust="left", color="#979797", size=4.0) +
+#  geom_text(data = NULL, x = 1, y = 12000000, 
+#            label = "% Increase in Applications Submitted since 2002", 
+#            hjust="left", color="#979797", size=4.0) +
+#  geom_text(data = NULL, x = 1, y = 11500000, 
+#            label = "Total Admissions by All Universities (Millions)", 
+#            hjust="left", color="#979797", size=4.0) +
+#  geom_text(data = NULL, x = 1, y = 11000000, 
+#            label = "Average Admissions per Student", 
+#            hjust="left", color="#979797", size=4.0) +
+#  geom_text(data = NULL, x = 1, y = 10500000, 
+#            label = "% Increase in Admissions since 2002", 
+#            hjust="left", color="#979797", size=4.0) +
+#  geom_text(data = NULL, x = 1, y = 10000000, 
+#            label = "Total Student Enrolments (Millions)", 
+#            hjust="left", color="#979797", size=4.0) +
+#  geom_text(data = NULL, x = 1, y = 09500000, 
+#            label = "% Increase in Student Enrolment since 2002", 
+#            hjust="left", color="#979797", size=4.0) +
+  geom_text(data = NULL, x = 0.5, y = 12500000, 
+            label = "12.5 Million",  
+            hjust="left", color="#979797", size=4.0) +
+  geom_text(data = NULL, x = 0.5, y = 10000000, 
+            label = "10 Million",  
+            hjust="left", color="#979797", size=4.0) +
+  geom_text(data = NULL, x = 0.5, y = 07500000, 
+            label = " 7.5 Million",  
+            hjust="left", color="#979797", size=4.0) -> ggp1
+#  scale_fill_viridis(discrete = TRUE)-> ggp1
+
+ggp1
+
+# write static image to output file
+ofn<-paste("CAF_",st,"_", wch, ".pdf", sep = "")
+pdf(ofn, width=1100, height=600, paper="USr")
+ggp1
+dev.off()
+
+
+```
+
+```{r}
+
+ggp1 +
+  transition_time(frame_num) +
+  shadow_mark() +
+  enter_grow() +
+  enter_fade() ->   anim2_bar
+
+# which output is required?
+# 1 = quickest and least functional
+# 2 = slower, more functional
+# 3 = slwest, mp4 file
+###################
+#output<-1
+###################
+# 1 ####
+#
+if (output == 1) {
+  animate(anim2_bar, fps = 10)
+  }
+
+# 2 #### This output is for class output...
+#
+if (output == 2) {
+  animate(anim2_bar, 100, fps = 20, duration = 20, width = 1100, height = 600)
+  }
+
+# 3 #### - run and save to MP4
+#
+if (output == 3) {
+  anim2_mp4<-animate(anim2_bar, 100, fps = 20, duration = drtn, width = 1100, height = 600
+                     ,renderer = ffmpeg_renderer())
+  ofn<-paste("CAF_",st,"_", wch, ".mp4", sep = "")
+  anim_save(ofn, anim2_mp4)
+}
+#and then in dos (CMD) have to recreate file using ffmpeg via
+# > ffmpeg -i anim2.mp4 anim2r.mp4
+#reason for this is my videostudio software does not recognize these mp4 files out of R
+#but it does recognize mp4 files once they have been rewritten
+
+```
+
+
+
+### The End
