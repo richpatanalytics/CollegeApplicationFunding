@@ -6,9 +6,9 @@ The US College Application process is a murky, frustrating process for millions 
 4. Slice into animated objects to support storyboard
 # Finished Product
 ## Video: 
-      https://youtu.be/OjQL9nmrH4g
-## Personal Blog: 
-      http://www.richpat.com/college-application-funnel
+      [Youtube College Application Funnel Video](https://youtu.be/OjQL9nmrH4g)
+## Blog: 
+      [College Application Funnel Blog](http://www.richpat.com/college-application-funnel)
 # Storyboard
 ## In Progress
 ## ToDo
