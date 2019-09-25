@@ -3,7 +3,12 @@ The US College Application process is a murky, frustrating process for millions 
 1. Obtain data from IPEDS and review to see whether it is appropriate
 2. Write animated graphics to show data
 3. Predict future using prophet
-4. SLice into animated objects to support storyboard
+4. Slice into animated objects to support storyboard
+# Finished Product
+## Video: 
+      https://youtu.be/OjQL9nmrH4g
+## Personal Blog: 
+      http://www.richpat.com/college-application-funnel
 # Storyboard
 ## In Progress
 ## ToDo
